@@ -3,15 +3,17 @@ const express = require("express");
 const morgan = require("morgan");
 const router = require("../routes/");
 const app = express();
+const { ValidationError } = require("joi");
 
 //logg
 app.use(morgan("dev"));
 
 //dataParser
 app.use(express.json());
+
 app.use(
   express.urlencoded({
-    extended: false,
+    extended: true,
   })
 );
 
@@ -32,8 +34,17 @@ app.use((error, req, res, next) => {
   console.log("Garbage Collector: ", error);
   let code = error.code ?? 500;
   let message = error.message ?? "Interal erro... . ";
+  let result = error.result ?? null;
+  //joiError Handler
+  if (error instanceof ValidationError) {
+    let msg = error.message;
+    code = 400;
+    message = "validation Error!!";
+    result = msg;
+  }
+
   res.status(code).json({
-    result: null,
+    result: result,
     message: message,
     meta: null,
   });

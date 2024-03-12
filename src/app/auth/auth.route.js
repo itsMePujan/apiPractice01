@@ -1,36 +1,45 @@
 const router = require("express").Router();
 const authCtrl = require("./auth.controller");
-//file handling
-const multer = require("multer");
-const fs = require("fs");
-const myStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    let path = "./public/users/image/";
-    if (!fs.existsSync(path)) {
-      fs.mkdirSync(path, { recursive: true });
-    }
-    cb(null, path);
-  },
-  filename: (req, file, cb) => {
-    let randomNum = Math.ceil(Math.random() * 999);
-    let ext = file.originalname.split(".").pop();
-    let filename = Date.now() + "-" + randomNum + "." + ext;
-    cb(null, filename);
-  },
-});
+const fileUploader = require("../middlewares/uploader.middlewares");
+const validateRequest = require("../middlewares/validate-request.middleware");
+const {
+  registerSchema,
+  passwordSchema,
+  loginSchema,
+} = require("./auth.validator");
+const checkLogin = require("../middlewares/auth.middleware");
+const checkPermission = require("../middlewares/rbac.middleware");
 
-const fileUploader = multer({
-  storage: myStorage,
-});
-router.post("/register", fileUploader.single("image"), authCtrl.register);
+const dirSetup = (req, res, next) => {
+  req.uploadDir = "./public/uploads/users";
+  next();
+};
 
-router.get("/verify-token/:token");
-router.post("/set-password/:token");
+router.post(
+  "/register",
+  dirSetup,
+  fileUploader.single("image"),
+  validateRequest(registerSchema),
+  authCtrl.register
+);
 
-router.post("/login");
+router.get("/verify-token/:token", authCtrl.verifyToken);
 
-router.post("/forgot-password");
-router.get("/me");
+router.post(
+  "/set-password/:token",
+  validateRequest(passwordSchema),
+  authCtrl.setPassword
+);
+
+router.post("/login", validateRequest(loginSchema), authCtrl.login);
+
+router.post("/forgot-password", checkLogin);
+//user route
+router.get("/user", checkLogin, checkPermission("user"), authCtrl.me);
+
+//admin route
+router.get("/admin", checkLogin, authCtrl.me);
+
 router.post("logout");
 
 module.exports = router;

@@ -1,9 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
-const router = require("../routes/");
 const app = express();
+
+require("./db.config");
+const router = require("../routes/");
+
 const { ValidationError } = require("joi");
+const { MongooseError } = require("mongoose");
 
 //logg
 app.use(morgan("dev"));
@@ -41,6 +45,18 @@ app.use((error, req, res, next) => {
     code = 400;
     message = "validation Error!!";
     result = msg;
+  }
+
+  if (error.code === 11000) {
+    code = 400;
+    let uniqueKeys = Object.keys(error.keyPattern);
+    let msgBody = uniqueKeys.map((key) => {
+      return {
+        [key]: key + " Should be uniques",
+      };
+    });
+    result = msgBody;
+    messsage = "validation Failed!";
   }
 
   res.status(code).json({

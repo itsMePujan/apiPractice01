@@ -6,6 +6,8 @@ const authSrv = require("./auth.services");
 const bcrypt = require("bcryptjs");
 
 const jwt = require("jsonwebtoken");
+
+const { MongoClient } = require("mongodb");
 class AuthController {
   register = async (req, res, next) => {
     try {
@@ -14,31 +16,35 @@ class AuthController {
       if (req.file) {
         payload.image = req.file.filename;
       } else if (req.files) {
-        payload.image = req.files.map((items) => item.filename);
+        payload.image = req.files.map((item) => item.filename);
       }
       payload.status = "inactive";
-      payload.token = generateRandomString(15);
+      payload.token = generateRandomString(100);
       //TODO : DB Store
-
+      let response = await authSrv.registerUser(payload);
+      console.log(response);
       //MAIL-OTP
       let mailMssg = authSrv.registerEmailMessage(payload.name, payload.token);
       const mailArc = mailSvc.emailSend(payload.email, "test second", mailMssg);
 
       res.json({
-        payload: payload,
+        payload: response,
+        message: "User regestered successfully.",
+        meta: null,
       });
     } catch (err) {
       next(err);
     }
   };
   //verify_Token
-  verifyToken = (req, res, next) => {
+  verifyToken = async (req, res, next) => {
     try {
       let token = req.params.token;
-      //TODO : Db
+      let response = await authSrv.getByFilter({ token: token });
+      console.log(response);
       if (token) {
         res.json({
-          result: {},
+          result: response,
           message: "valid token",
           meta: null,
         });
